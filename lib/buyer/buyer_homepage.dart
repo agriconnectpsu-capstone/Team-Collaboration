@@ -1,4 +1,3 @@
-import 'package:agriconnectapp/buyer/buyer_profile.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../widgets/buyer_widgets.dart';
@@ -25,7 +24,6 @@ class _BuyerHomePageState extends State<BuyerHomePage> {
           style:
           GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.w500)),
     ),
-    const BuyerProfilePage(),
   ];
 
   void _onTabChange(int index) {
