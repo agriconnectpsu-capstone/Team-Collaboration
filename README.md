@@ -1,2 +1,0 @@
-# Team-Collaboration
-Ecommerce app
