@@ -1,4 +1,4 @@
-import 'package:agriconnectapp/buyer/buyer_profile.dart';
+import '/buyer/buyer_profile.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../widgets/buyer_widgets.dart';

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import 'package:flutter/material.dart';
 // Import your buyer homepage file
 import '/buyer/buyer_homepage.dart';
 

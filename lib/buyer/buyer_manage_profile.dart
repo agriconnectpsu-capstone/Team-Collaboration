@@ -1,3 +1,4 @@
+import 'package:agriconnectapp/buyer/manage_profile/edit_profile.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:ionicons/ionicons.dart';
@@ -65,7 +66,10 @@ class BuyerManageProfilePage extends StatelessWidget {
                 "Edit Profile",
                 Ionicons.create_outline,
                     () {
-                  // Navigate to Edit Profile Page
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const EditProfilePage()),
+                  );
                 },
               ),
               _buildTile(
