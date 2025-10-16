@@ -39,10 +39,10 @@
               "client_type": 3
             },
             {
-              "client_id": "57309570211-vhmmi83g8bnv9vksego455mqubaltc66.apps.googleusercontent.com",
+              "client_id": "57309570211-crbb5krqj84i4qijuvbjq8cc7ohf9g1q.apps.googleusercontent.com",
               "client_type": 2,
               "ios_info": {
-                "bundle_id": "com.example.agriconnect"
+                "bundle_id": "com.example.agriconnectapp"
               }
             }
           ]
@@ -57,6 +57,14 @@
         }
       },
       "oauth_client": [
+        {
+          "client_id": "57309570211-05apkf552cc8kk3o7mu2ep2db1epph7o.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.agriconnectapp",
+            "certificate_hash": "88d68d622e4b770fc8c554e97dfaf4a739b21e52"
+          }
+        },
         {
           "client_id": "57309570211-iglios8a21pmhb0m0tesukucgud2uj70.apps.googleusercontent.com",
           "client_type": 3
@@ -75,10 +83,10 @@
               "client_type": 3
             },
             {
-              "client_id": "57309570211-vhmmi83g8bnv9vksego455mqubaltc66.apps.googleusercontent.com",
+              "client_id": "57309570211-crbb5krqj84i4qijuvbjq8cc7ohf9g1q.apps.googleusercontent.com",
               "client_type": 2,
               "ios_info": {
-                "bundle_id": "com.example.agriconnect"
+                "bundle_id": "com.example.agriconnectapp"
               }
             }
           ]
