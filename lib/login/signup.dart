@@ -17,17 +17,14 @@ class SignupPage extends StatefulWidget {
 class _SignupPageState extends State<SignupPage> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-
   final TextEditingController _usernameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
-  final TextEditingController _confirmPasswordController =
-  TextEditingController();
-
-  final _formKey = GlobalKey<FormState>();
+  final TextEditingController _confirmPasswordController = TextEditingController();
 
   bool _obscurePassword = true;
   bool _obscureConfirm = true;
+  bool _isLoading = false; // loading indicator (added from Code 2)
 
   String? _usernameError;
   String? _emailError;
@@ -37,11 +34,10 @@ class _SignupPageState extends State<SignupPage> {
 
   final Color darkGreen = const Color(0xFF0C3D2E);
 
+  //  Real-Time Listeners
   @override
   void initState() {
     super.initState();
-
-    // Real-time validation listeners
     _usernameController.addListener(_validateUsername);
     _emailController.addListener(_validateEmail);
     _passwordController.addListener(_validatePassword);
@@ -68,14 +64,16 @@ class _SignupPageState extends State<SignupPage> {
     String? error;
     if (password.length < 6) {
       error = 'Your password should be at least 6 characters long';
-    } else if (!RegExp(r'[!@#\$&*~]').hasMatch(password)) {
-      error = 'Your password needs at least 1 special character';
+    }
+    else if (!RegExp(r'[^a-zA-Z0-9]').hasMatch(password)) {
+      error = 'Your password must have at least 1 special character';
     }
     setState(() {
       _passwordError = error;
       _passwordStrength = _getPasswordStrength(password);
     });
   }
+
 
   void _validateConfirmPassword() {
     setState(() {
@@ -90,9 +88,11 @@ class _SignupPageState extends State<SignupPage> {
     if (password.isEmpty) return '';
     int score = 0;
     if (password.length >= 6) score++;
-    if (RegExp(r'[!@#\$&*~]').hasMatch(password)) score++;
+    if (RegExp(r'[^a-zA-Z0-9]').hasMatch(password)) score++;
     if (RegExp(r'[A-Z]').hasMatch(password)) score++;
     if (RegExp(r'[0-9]').hasMatch(password)) score++;
+
+    // Evaluate overall strength
     switch (score) {
       case 0:
       case 1:
@@ -107,6 +107,8 @@ class _SignupPageState extends State<SignupPage> {
     }
   }
 
+
+  //  Firebase Signup Function
   Future<void> _registerWithEmail() async {
     _validateUsername();
     _validateEmail();
@@ -117,20 +119,22 @@ class _SignupPageState extends State<SignupPage> {
         _emailError != null ||
         _passwordError != null ||
         _confirmPasswordError != null) {
-      return; // There are validation errors
+      return; // Stop if validation errors exist
     }
 
+    setState(() => _isLoading = true);
+
     try {
-      UserCredential userCredential =
-      await _auth.createUserWithEmailAndPassword(
+      // 🔹 Create Firebase Auth account
+      UserCredential userCredential = await _auth.createUserWithEmailAndPassword(
         email: _emailController.text.trim(),
         password: _passwordController.text,
       );
 
-      // Send email verification
+      // 🔹 Send verification email
       await userCredential.user!.sendEmailVerification();
 
-      // Store username and email in Firestore
+      // 🔹 Store user info in Firestore
       await _firestore.collection('users').doc(userCredential.user!.uid).set({
         'username': _usernameController.text.trim(),
         'email': _emailController.text.trim(),
@@ -139,34 +143,40 @@ class _SignupPageState extends State<SignupPage> {
         'authProvider': 'email',
       });
 
-      // Show a dialog with "Resend Email" option
-      showDialog(
-        context: context,
-        builder: (_) => AlertDialog(
-          title: const Text('Verify your email'),
-          content: const Text(
-              'A verification email has been sent. Please verify your email before logging in.'),
-          actions: [
-            TextButton(
-              onPressed: () async {
-                // Resend verification email
-                await userCredential.user!.sendEmailVerification();
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Verification email sent again.'),
-                  ),
-                );
-              },
-              child: const Text('Resend Email'),
+      // 🔹 Show dialog
+      if (mounted) {
+        showDialog(
+          context: context,
+          builder: (_) => AlertDialog(
+            title: const Text('Verify your email'),
+            content: const Text(
+              'A verification email has been sent. Please verify your email before logging in.',
             ),
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('OK'),
-            ),
-          ],
-        ),
-      );
+            actions: [
+              TextButton(
+                onPressed: () async {
+                  await userCredential.user!.sendEmailVerification();
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Verification email sent again.')),
+                  );
+                },
+                child: const Text('Resend Email'),
+              ),
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(builder: (_) => const LoginPage()),
+                  );
+                },
+                child: const Text('OK'),
+              ),
+            ],
+          ),
+        );
+      }
     } on FirebaseAuthException catch (e) {
       String message = '';
       switch (e.code) {
@@ -182,41 +192,33 @@ class _SignupPageState extends State<SignupPage> {
         default:
           message = e.message ?? 'An error occurred.';
       }
-      setState(() {
-        _emailError = message;
-      });
+      setState(() => _emailError = message);
     } catch (e) {
-      print(e);
+      debugPrint(e.toString());
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
-
+  // Google Sign-In Function
   Future<void> _signInWithGoogle() async {
     try {
       final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
       if (googleUser == null) return; // user canceled
 
-      final GoogleSignInAuthentication googleAuth =
-      await googleUser.authentication;
+      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
 
       final credential = GoogleAuthProvider.credential(
         accessToken: googleAuth.accessToken,
         idToken: googleAuth.idToken,
       );
 
-      UserCredential userCredential =
-      await _auth.signInWithCredential(credential);
+      UserCredential userCredential = await _auth.signInWithCredential(credential);
 
-      // Store user in Firestore if new
-      final doc = await _firestore
-          .collection('users')
-          .doc(userCredential.user!.uid)
-          .get();
+      //  Save user in Firestore if new
+      final doc = await _firestore.collection('users').doc(userCredential.user!.uid).get();
       if (!doc.exists) {
-        await _firestore
-            .collection('users')
-            .doc(userCredential.user!.uid)
-            .set({
+        await _firestore.collection('users').doc(userCredential.user!.uid).set({
           'username': googleUser.displayName ?? 'No Name',
           'email': googleUser.email,
           'createdAt': FieldValue.serverTimestamp(),
@@ -225,10 +227,14 @@ class _SignupPageState extends State<SignupPage> {
         });
       }
 
-      // Auto login successful, navigate or pop
-      Navigator.pop(context); // or push to home page
+      if (mounted) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const LoginPage()),
+        );
+      }
     } catch (e) {
-      print(e);
+      debugPrint(e.toString());
     }
   }
 
@@ -252,6 +258,7 @@ class _SignupPageState extends State<SignupPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
+              // Header
               const SizedBox(height: 10),
               Text(
                 "Hello!",
@@ -299,13 +306,13 @@ class _SignupPageState extends State<SignupPage> {
                     _obscurePassword ? Icons.visibility : Icons.visibility_off,
                     color: Colors.black38,
                   ),
-                  onPressed: () {
-                    setState(() {
-                      _obscurePassword = !_obscurePassword;
-                    });
-                  },
+                  onPressed: () => setState(() {
+                    _obscurePassword = !_obscurePassword;
+                  }),
                 ),
               ),
+
+              // Password Strength
               if (_passwordStrength.isNotEmpty)
                 Padding(
                   padding: const EdgeInsets.only(top: 5, left: 10),
@@ -314,12 +321,13 @@ class _SignupPageState extends State<SignupPage> {
                     child: Text(
                       'Password Strength: $_passwordStrength',
                       style: GoogleFonts.poppins(
-                          fontSize: 12,
-                          color: _passwordStrength == 'Weak'
-                              ? Colors.red
-                              : _passwordStrength == 'Medium'
-                              ? Colors.orange
-                              : Colors.green),
+                        fontSize: 12,
+                        color: _passwordStrength == 'Weak'
+                            ? Colors.red
+                            : _passwordStrength == 'Medium'
+                            ? Colors.orange
+                            : Colors.green,
+                      ),
                     ),
                   ),
                 ),
@@ -336,16 +344,14 @@ class _SignupPageState extends State<SignupPage> {
                     _obscureConfirm ? Icons.visibility : Icons.visibility_off,
                     color: Colors.black38,
                   ),
-                  onPressed: () {
-                    setState(() {
-                      _obscureConfirm = !_obscureConfirm;
-                    });
-                  },
+                  onPressed: () => setState(() {
+                    _obscureConfirm = !_obscureConfirm;
+                  }),
                 ),
               ),
               const SizedBox(height: 25),
 
-              // Register button
+              // Register Button
               SizedBox(
                 width: double.infinity,
                 height: 48,
@@ -356,8 +362,10 @@ class _SignupPageState extends State<SignupPage> {
                       borderRadius: BorderRadius.circular(30),
                     ),
                   ),
-                  onPressed: _registerWithEmail,
-                  child: Text(
+                  onPressed: _isLoading ? null : _registerWithEmail,
+                  child: _isLoading
+                      ? const CircularProgressIndicator(color: Colors.white)
+                      : Text(
                     "Register",
                     style: GoogleFonts.poppins(
                       color: Colors.white,
@@ -370,14 +378,14 @@ class _SignupPageState extends State<SignupPage> {
 
               const SizedBox(height: 30),
 
+              // OR Register with
               Text(
                 "Or Register with",
                 style: GoogleFonts.poppins(fontSize: 13, color: Colors.black54),
               ),
-
               const SizedBox(height: 15),
 
-              // Social Login buttons
+              // Google / Facebook Buttons
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -391,6 +399,8 @@ class _SignupPageState extends State<SignupPage> {
               ),
 
               const SizedBox(height: 30),
+
+              // Already have an account? Login
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -400,7 +410,7 @@ class _SignupPageState extends State<SignupPage> {
                   ),
                   GestureDetector(
                     onTap: () {
-                      Navigator.push(
+                      Navigator.pushReplacement(
                         context,
                         MaterialPageRoute(builder: (_) => const LoginPage()),
                       );
@@ -415,7 +425,7 @@ class _SignupPageState extends State<SignupPage> {
                     ),
                   ),
                 ],
-              )
+              ),
             ],
           ),
         ),
@@ -457,7 +467,10 @@ class _SignupPageState extends State<SignupPage> {
               child: Text(
                 errorText,
                 style: GoogleFonts.poppins(
-                    fontSize: 12, color: Colors.red, fontWeight: FontWeight.w500),
+                  fontSize: 12,
+                  color: Colors.red,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
             ),
           ),

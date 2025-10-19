@@ -1,10 +1,11 @@
+// 📦 Imports
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:email_validator/email_validator.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'signup.dart';
 
 class LoginPage extends StatefulWidget {
@@ -15,35 +16,32 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> {
+  // 🔥 Firebase instances
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
+  // 🧠 Text controllers
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
 
+  // ⚙️ State variables
   String? _emailError;
   String? _passwordError;
   bool _obscurePassword = true;
   bool _isLoading = false;
 
+  // 🎨 Theme colors
   final Color darkGreen = const Color(0xFF0C3D2E);
 
+  // 🧹 Dispose controllers when page is destroyed
   @override
-  void initState() {
-    super.initState();
-
-    _emailController.addListener(_validateEmail);
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
   }
 
-  void _validateEmail() {
-    setState(() {
-      _emailError = _emailController.text.isNotEmpty &&
-          !EmailValidator.validate(_emailController.text.trim())
-          ? 'Please input a valid email'
-          : null;
-    });
-  }
-
+  // 📧 Login using Email & Password
   Future<void> _loginWithEmail() async {
     setState(() {
       _isLoading = true;
@@ -51,108 +49,116 @@ class _LoginPageState extends State<LoginPage> {
       _passwordError = null;
     });
 
-    try {
-      final userCredential = await _auth.signInWithEmailAndPassword(
-        email: _emailController.text.trim(),
-        password: _passwordController.text,
-      );
+    final email = _emailController.text.trim().toLowerCase();
+    final password = _passwordController.text.trim();
 
-      if (!userCredential.user!.emailVerified) {
+    // 🧩 Basic validation
+    if (!EmailValidator.validate(email)) {
+      setState(() {
+        _emailError = 'Please enter a valid email.';
+        _isLoading = false;
+      });
+      return;
+    }
+    if (password.isEmpty) {
+      setState(() {
+        _passwordError = 'Please enter your password.';
+        _isLoading = false;
+      });
+      return;
+    }
+
+    try {
+      // ✅ Attempt sign-in
+      final userCredential = await _auth.signInWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+      final user = userCredential.user;
+
+      // 🚫 If email not verified yet
+      if (user != null && !user.emailVerified) {
+        await user.sendEmailVerification();
         setState(() {
-          _emailError = 'Please verify your email before logging in.';
+          _emailError = 'Please verify your email first.';
+          _isLoading = false;
         });
 
-        // Optional: Resend verification email automatically
-        await userCredential.user!.sendEmailVerification();
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Verification email sent again.'),
-          ),
+          const SnackBar(content: Text('Verification email sent again.')),
         );
-        return; // Stop login
+        return;
       }
 
-      // Login successful message
-      Navigator.pop(context); // Or navigate to Home page
+      // 🗂️ Ensure Firestore record exists
+      if (user != null) {
+        final docRef = _firestore.collection('users').doc(user.uid);
+        final docSnap = await docRef.get();
+
+        if (!docSnap.exists) {
+          await docRef.set({
+            'email': email,
+            'createdAt': FieldValue.serverTimestamp(),
+            'isVerified': true,
+            'authProvider': 'email',
+          });
+        } else {
+          await docRef.update({'isVerified': true});
+        }
+      }
+
+      // 🎉 Success feedback
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Login successful!')),
+      );
+
+      // 🔁 Navigate back or to homepage
+      Navigator.pop(context);
     } on FirebaseAuthException catch (e) {
+      // ⚠️ Handle Firebase errors
       setState(() {
         switch (e.code) {
           case 'user-not-found':
-            _emailError = 'Email is not registered yet.';
+            _emailError = 'Email not registered.';
             break;
           case 'wrong-password':
-            _passwordError = 'Password is incorrect.';
+            _passwordError = 'Incorrect password.';
             break;
           case 'invalid-email':
-            _emailError = 'Please input a valid email.';
+            _emailError = 'Invalid email format.';
             break;
           default:
             _emailError = e.message;
         }
       });
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      setState(() => _isLoading = false);
     }
   }
 
-
-  Future<void> _forgotPassword() async {
-    if (_emailController.text.trim().isEmpty ||
-        !EmailValidator.validate(_emailController.text.trim())) {
-      setState(() {
-        _emailError = 'Please input a valid email.';
-      });
-      return;
-    }
-
-    try {
-      await _auth.sendPasswordResetEmail(email: _emailController.text.trim());
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Password reset email sent.')),
-      );
-    } on FirebaseAuthException catch (e) {
-      setState(() {
-        if (e.code == 'user-not-found') {
-          _emailError = 'Email is not registered yet.';
-        } else {
-          _emailError = e.message;
-        }
-      });
-    }
-  }
-
+  // 🔑 Sign in with Google
   Future<void> _signInWithGoogle() async {
     try {
-      setState(() {
-        _isLoading = true;
-      });
+      setState(() => _isLoading = true);
 
       final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
-      if (googleUser == null) return;
+      if (googleUser == null) return; // Cancelled
 
-      final GoogleSignInAuthentication googleAuth =
-      await googleUser.authentication;
+      final googleAuth = await googleUser.authentication;
 
       final credential = GoogleAuthProvider.credential(
         accessToken: googleAuth.accessToken,
         idToken: googleAuth.idToken,
       );
 
-      UserCredential userCredential =
+      final userCredential =
       await _auth.signInWithCredential(credential);
+      final user = userCredential.user;
 
-      // Store data in Firestore if new users
-      final doc = await _firestore
-          .collection('users')
-          .doc(userCredential.user!.uid)
-          .get();
-      if (!doc.exists) {
-        await _firestore
-            .collection('users')
-            .doc(userCredential.user!.uid)
-            .set({
+      // 🗂️ Save new Google user to Firestore
+      final userDoc = _firestore.collection('users').doc(user!.uid);
+      if (!(await userDoc.get()).exists) {
+        await userDoc.set({
           'username': googleUser.displayName ?? 'No Name',
           'email': googleUser.email,
           'createdAt': FieldValue.serverTimestamp(),
@@ -161,24 +167,37 @@ class _LoginPageState extends State<LoginPage> {
         });
       }
 
-      // Auto-login successful
-      Navigator.pop(context); // or navigate to Home page
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Logged in with Google successfully!')),
+      );
+
+      Navigator.pop(context);
     } catch (e) {
-      print(e);
+      debugPrint("Google Sign-In Error: $e");
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      setState(() => _isLoading = false);
     }
   }
 
-  @override
-  void dispose() {
-    _emailController.dispose();
-    _passwordController.dispose();
-    super.dispose();
+  // 🔁 Password Reset
+  Future<void> _forgotPassword() async {
+    final email = _emailController.text.trim();
+    if (!EmailValidator.validate(email)) {
+      setState(() => _emailError = 'Enter a valid email first.');
+      return;
+    }
+
+    try {
+      await _auth.sendPasswordResetEmail(email: email);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Password reset email sent!')),
+      );
+    } catch (e) {
+      debugPrint("Password reset failed: $e");
+    }
   }
 
+  // 🧱 UI Building
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -201,7 +220,7 @@ class _LoginPageState extends State<LoginPage> {
               ),
               const SizedBox(height: 5),
               Text(
-                "Login to AgriCommerce.",
+                "Login to AgriConnect.",
                 style: GoogleFonts.poppins(
                   fontSize: 16,
                   fontWeight: FontWeight.w500,
@@ -210,7 +229,7 @@ class _LoginPageState extends State<LoginPage> {
               ),
               const SizedBox(height: 40),
 
-              // Email
+              // 📩 Email Input
               _buildTextField(
                 "Email",
                 controller: _emailController,
@@ -218,7 +237,7 @@ class _LoginPageState extends State<LoginPage> {
               ),
               const SizedBox(height: 15),
 
-              // Password
+              // 🔒 Password Input
               _buildTextField(
                 "Password",
                 controller: _passwordController,
@@ -229,11 +248,8 @@ class _LoginPageState extends State<LoginPage> {
                     _obscurePassword ? Icons.visibility : Icons.visibility_off,
                     color: Colors.black38,
                   ),
-                  onPressed: () {
-                    setState(() {
-                      _obscurePassword = !_obscurePassword;
-                    });
-                  },
+                  onPressed: () =>
+                      setState(() => _obscurePassword = !_obscurePassword),
                 ),
               ),
 
@@ -254,7 +270,7 @@ class _LoginPageState extends State<LoginPage> {
 
               const SizedBox(height: 25),
 
-              // Login button
+              // 🔘 Login Button
               SizedBox(
                 width: double.infinity,
                 height: 48,
@@ -267,9 +283,7 @@ class _LoginPageState extends State<LoginPage> {
                   ),
                   onPressed: _loginWithEmail,
                   child: _isLoading
-                      ? const CircularProgressIndicator(
-                    color: Colors.white,
-                  )
+                      ? const CircularProgressIndicator(color: Colors.white)
                       : Text(
                     "Login",
                     style: GoogleFonts.poppins(
@@ -284,11 +298,12 @@ class _LoginPageState extends State<LoginPage> {
               const SizedBox(height: 30),
               Text(
                 "Or Login with",
-                style: GoogleFonts.poppins(fontSize: 13, color: Colors.black54),
+                style:
+                GoogleFonts.poppins(fontSize: 13, color: Colors.black54),
               ),
-
               const SizedBox(height: 15),
 
+              // 🌐 Google Sign-In Button
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -302,6 +317,8 @@ class _LoginPageState extends State<LoginPage> {
               ),
 
               const SizedBox(height: 30),
+
+              // 🔗 Go to Signup
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -326,7 +343,7 @@ class _LoginPageState extends State<LoginPage> {
                     ),
                   ),
                 ],
-              )
+              ),
             ],
           ),
         ),
@@ -334,6 +351,7 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 
+  // 🧱 Reusable TextField Builder
   Widget _buildTextField(
       String hint, {
         required TextEditingController controller,
@@ -348,7 +366,8 @@ class _LoginPageState extends State<LoginPage> {
           obscureText: obscureText,
           decoration: InputDecoration(
             hintText: hint,
-            hintStyle: GoogleFonts.poppins(color: Colors.black38, fontSize: 14),
+            hintStyle:
+            GoogleFonts.poppins(color: Colors.black38, fontSize: 14),
             filled: true,
             fillColor: const Color(0xFFF6F6F6),
             contentPadding:
@@ -375,6 +394,7 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 
+  // Reusable Social Button
   Widget _socialButton(IconData icon, Color color) {
     return Container(
       width: 48,
