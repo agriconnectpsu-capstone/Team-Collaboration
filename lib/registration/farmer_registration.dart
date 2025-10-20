@@ -147,16 +147,23 @@ class _FarmerRegistrationState extends State<FarmerRegistration> {
       final user = FirebaseAuth.instance.currentUser!;
       final userId = user.uid;
 
-      final frontUrl = await _uploadImage(_idFrontImage!, userId, 'id_front');
-      final backUrl = await _uploadImage(_idBackImage!, userId, 'id_back');
+      String? frontUrl;
+      String? backUrl;
+      if (_idFrontImage != null) {
+        frontUrl = await _uploadImage(_idFrontImage!, userId, 'id_front');
+      }
+      if (_idBackImage != null) {
+        backUrl = await _uploadImage(_idBackImage!, userId, 'id_back');
+      }
+
 
       // Save to farmer_registration
       await FirebaseFirestore.instance.collection('farmer_registration').doc(userId).set({
         'full_name': _fullNameController.text.trim(),
         'email': _emailController.text.trim(),
         'phone': _phoneController.text.trim(),
-        'id_front': frontUrl,
-        'id_back': backUrl,
+        'id_front': frontUrl ?? '',
+        'id_back': backUrl ?? '',
         'farm_name': _farmNameController.text.trim(),
         'region': _selectedRegion,
         'province': _selectedProvince,
@@ -229,56 +236,79 @@ class _FarmerRegistrationState extends State<FarmerRegistration> {
               const SizedBox(height: 20),
               sectionTitle('Farm Information'),
               buildTextField('Farm Name', _farmNameController),
-              buildDropdownField(
-                hint: 'Region',
-                items: _regions,
-                selectedValue: _selectedRegion,
-                onChanged: (val) {
-                  setState(() {
-                    _selectedRegion = val;
-                    _loadProvinces(val!); // load provinces for selected region
-                  });
+
+              // Dropdowns wrapped safely to prevent overflow
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final dropdownWidth = constraints.maxWidth; // safe width
+                  return Column(
+                    children: [
+                      SizedBox(
+                        width: dropdownWidth,
+                        child: buildDropdownField(
+                          hint: 'Region',
+                          items: _regions,
+                          selectedValue: _selectedRegion,
+                          onChanged: (val) {
+                            setState(() {
+                              _selectedRegion = val;
+                              _loadProvinces(val!);
+                            });
+                          },
+                          valueKey: 'region_code',
+                          nameKey: 'region_name',
+                        ),
+                      ),
+                      SizedBox(
+                        width: dropdownWidth,
+                        child: buildDropdownField(
+                          hint: 'Province',
+                          items: _provinces,
+                          selectedValue: _selectedProvince,
+                          onChanged: (val) {
+                            setState(() {
+                              _selectedProvince = val;
+                              _loadCities(val!);
+                            });
+                          },
+                          valueKey: 'province_code',
+                          nameKey: 'province_name',
+                        ),
+                      ),
+                      SizedBox(
+                        width: dropdownWidth,
+                        child: buildDropdownField(
+                          hint: 'City / Municipality',
+                          items: _cities,
+                          selectedValue: _selectedCity,
+                          onChanged: (val) {
+                            setState(() {
+                              _selectedCity = val;
+                              _loadBarangays(val!);
+                            });
+                          },
+                          valueKey: 'city_code',
+                          nameKey: 'city_name',
+                        ),
+                      ),
+                      SizedBox(
+                        width: dropdownWidth,
+                        child: buildDropdownField(
+                          hint: 'Barangay',
+                          items: _barangays,
+                          selectedValue: _selectedBarangay,
+                          onChanged: (val) {
+                            setState(() {
+                              _selectedBarangay = val;
+                            });
+                          },
+                          valueKey: 'brgy_code',
+                          nameKey: 'brgy_name',
+                        ),
+                      ),
+                    ],
+                  );
                 },
-                valueKey: 'region_code',
-                nameKey: 'region_name',
-              ),
-              buildDropdownField(
-                hint: 'Province',
-                items: _provinces,
-                selectedValue: _selectedProvince,
-                onChanged: (val) {
-                  setState(() {
-                    _selectedProvince = val;
-                    _loadCities(val!); // load cities for selected province
-                  });
-                },
-                valueKey: 'province_code',
-                nameKey: 'province_name',
-              ),
-              buildDropdownField(
-                hint: 'City / Municipality',
-                items: _cities,
-                selectedValue: _selectedCity,
-                onChanged: (val) {
-                  setState(() {
-                    _selectedCity = val;
-                    _loadBarangays(val!); // load barangays for selected city
-                  });
-                },
-                valueKey: 'city_code',
-                nameKey: 'city_name',
-              ),
-              buildDropdownField(
-                hint: 'Barangay',
-                items: _barangays,
-                selectedValue: _selectedBarangay,
-                onChanged: (val) {
-                  setState(() {
-                    _selectedBarangay = val;
-                  });
-                },
-                valueKey: 'brgy_code',
-                nameKey: 'brgy_name',
               ),
 
               buildTextField('Detailed Address', _detailedAddressController),
@@ -342,6 +372,7 @@ class _FarmerRegistrationState extends State<FarmerRegistration> {
       ),
     );
   }
+
 
   Widget sectionTitle(String title) {
     return Padding(

@@ -108,13 +108,10 @@ class LandingPage extends StatelessWidget {
 
             // 🧭 Navigation Logic
             if (role == null || role.isEmpty) {
-              // User has no role yet → choose role
               return const RegisterPage();
             } else if (!hasAcceptedTerms) {
-              // Must accept Terms & Conditions → choose role again
               return const RegisterPage();
             } else if (!isRegistered) {
-              // Role chosen but not yet registered → choose role again
               return const RegisterPage();
             } else {
               // ✅ Registration complete → go to specific homepage

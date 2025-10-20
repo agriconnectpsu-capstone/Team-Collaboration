@@ -199,7 +199,7 @@ class _BusinessRegistrationState extends State<BusinessRegistration> {
       appBar: AppBar(
         backgroundColor: const Color(0xFF1B5E20),
         title: Text(
-          'Business Owner Registration',
+          'Business Registration',
           style: GoogleFonts.poppins(
             color: Colors.white,
             fontWeight: FontWeight.w600,
@@ -224,57 +224,79 @@ class _BusinessRegistrationState extends State<BusinessRegistration> {
               uploadField('BIR Certificate'),
               const SizedBox(height: 20),
               sectionTitle('Store Location'),
-              // Region
-              buildDropdownField(
-                hint: 'Region',
-                items: _regions,
-                selectedValue: _selectedRegion,
-                onChanged: (val) {
-                  setState(() {
-                    _selectedRegion = val;
-                    _loadProvinces(val!);
-                  });
+
+              // Wrap dropdowns in SizedBox with width = full screen minus padding
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final dropdownWidth = constraints.maxWidth; // safe width
+                  return Column(
+                    children: [
+                      SizedBox(
+                        width: dropdownWidth,
+                        child: buildDropdownField(
+                          hint: 'Region',
+                          items: _regions,
+                          selectedValue: _selectedRegion,
+                          onChanged: (val) {
+                            setState(() {
+                              _selectedRegion = val;
+                              _loadProvinces(val!);
+                            });
+                          },
+                          valueKey: 'region_code',
+                          nameKey: 'region_name',
+                        ),
+                      ),
+                      SizedBox(
+                        width: dropdownWidth,
+                        child: buildDropdownField(
+                          hint: 'Province',
+                          items: _provinces,
+                          selectedValue: _selectedProvince,
+                          onChanged: (val) {
+                            setState(() {
+                              _selectedProvince = val;
+                              _loadCities(val!);
+                            });
+                          },
+                          valueKey: 'province_code',
+                          nameKey: 'province_name',
+                        ),
+                      ),
+                      SizedBox(
+                        width: dropdownWidth,
+                        child: buildDropdownField(
+                          hint: 'City / Municipality',
+                          items: _cities,
+                          selectedValue: _selectedCity,
+                          onChanged: (val) {
+                            setState(() {
+                              _selectedCity = val;
+                              _loadBarangays(val!);
+                            });
+                          },
+                          valueKey: 'city_code',
+                          nameKey: 'city_name',
+                        ),
+                      ),
+                      SizedBox(
+                        width: dropdownWidth,
+                        child: buildDropdownField(
+                          hint: 'Barangay',
+                          items: _barangays,
+                          selectedValue: _selectedBarangay,
+                          onChanged: (val) {
+                            setState(() {
+                              _selectedBarangay = val;
+                            });
+                          },
+                          valueKey: 'brgy_code',
+                          nameKey: 'brgy_name',
+                        ),
+                      ),
+                    ],
+                  );
                 },
-                valueKey: 'region_code',
-                nameKey: 'region_name',
-              ),
-              buildDropdownField(
-                hint: 'Province',
-                items: _provinces,
-                selectedValue: _selectedProvince,
-                onChanged: (val) {
-                  setState(() {
-                    _selectedProvince = val;
-                    _loadCities(val!); // load cities for selected province
-                  });
-                },
-                valueKey: 'province_code',
-                nameKey: 'province_name',
-              ),
-              buildDropdownField(
-                hint: 'City / Municipality',
-                items: _cities,
-                selectedValue: _selectedCity,
-                onChanged: (val) {
-                  setState(() {
-                    _selectedCity = val;
-                    _loadBarangays(val!); // load barangays for selected city
-                  });
-                },
-                valueKey: 'city_code',
-                nameKey: 'city_name',
-              ),
-              buildDropdownField(
-                hint: 'Barangay',
-                items: _barangays,
-                selectedValue: _selectedBarangay,
-                onChanged: (val) {
-                  setState(() {
-                    _selectedBarangay = val;
-                  });
-                },
-                valueKey: 'brgy_code',
-                nameKey: 'brgy_name',
               ),
 
               buildTextField('Detailed Address', _detailedAddressController),
