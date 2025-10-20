@@ -2,14 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-
 import 'login/login.dart';
 import 'registration/registerpage.dart';
-import '/registration/done/farmer_done.dart';
-import '/registration/done/business_done.dart';
 import '/login/signup.dart';
-import '/registration/business_registration.dart';
-import '/registration/farmer_registration.dart';
 import '/buyer/buyer_homepage.dart';
 import '/farmer/farmer_homepage.dart';
 
@@ -52,14 +47,13 @@ class LandingPage extends StatelessWidget {
           );
         }
 
-        // 🚪 Not logged in → go to Login page
         if (!snapshot.hasData) {
           return const LoginPage();
         }
 
         final user = snapshot.data!;
 
-        // 🔒 If email not verified
+        // 🔒 If email not verified (only for password accounts)
         if (!user.emailVerified &&
             user.providerData[0].providerId == 'password') {
           return Scaffold(
@@ -84,7 +78,6 @@ class LandingPage extends StatelessWidget {
           );
         }
 
-        // ✅ Email verified → fetch user data
         return FutureBuilder<DocumentSnapshot>(
           future: _firestore.collection('users').doc(user.uid).get(),
           builder: (context, userSnapshot) {
@@ -94,41 +87,47 @@ class LandingPage extends StatelessWidget {
               );
             }
 
-            // 📄 No Firestore doc → go to Signup
             if (!userSnapshot.hasData || !userSnapshot.data!.exists) {
               return const SignupPage();
             }
 
             final data =
                 userSnapshot.data!.data() as Map<String, dynamic>? ?? {};
-
-            final bool hasAcceptedTerms = data['hasAcceptedTerms'] ?? false;
-            final bool isRegistered = data['isRegistered'] ?? false;
             final String? role = data['role'];
 
-            // 🧭 Navigation Logic
             if (role == null || role.isEmpty) {
-              // User has no role yet → choose role
               return const RegisterPage();
-            } else if (!hasAcceptedTerms) {
-              // Must accept Terms & Conditions → choose role again
-              return const RegisterPage();
-            } else if (!isRegistered) {
-              // Role chosen but not yet registered → choose role again
-              return const RegisterPage();
-            } else {
-              // ✅ Registration complete → go to specific homepage
-              if (role == 'business') {
-                return const BuyerHomePage();
-              } else if (role == 'farmer') {
-                return const FarmerHomepage();
-              } else {
-                return const RegisterPage();
-              }
             }
+
+            final regCollection = role == 'farmer'
+                ? 'farmer_registration'
+                : 'business_registration';
+
+            return FutureBuilder<DocumentSnapshot>(
+              future:
+              _firestore.collection(regCollection).doc(user.uid).get(),
+              builder: (context, regSnapshot) {
+                if (regSnapshot.connectionState == ConnectionState.waiting) {
+                  return const Scaffold(
+                    body: Center(child: CircularProgressIndicator()),
+                  );
+                }
+
+                if (!regSnapshot.hasData || !regSnapshot.data!.exists) {
+                  return const RegisterPage();
+                }
+
+                if (role == 'farmer') {
+                  return const FarmerHomepage();
+                } else {
+                  return const BuyerHomePage();
+                }
+              },
+            );
           },
         );
       },
     );
   }
 }
+

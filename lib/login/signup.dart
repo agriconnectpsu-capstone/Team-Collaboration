@@ -54,7 +54,7 @@ class _SignupPageState extends State<SignupPage> {
   void _validateEmail() {
     setState(() {
       _emailError = !EmailValidator.validate(_emailController.text.trim())
-          ? 'Please input a real email'
+          ? 'Please input a valid email address'
           : null;
     });
   }
@@ -125,16 +125,16 @@ class _SignupPageState extends State<SignupPage> {
     setState(() => _isLoading = true);
 
     try {
-      // 🔹 Create Firebase Auth account
+      // Create Firebase Auth account
       UserCredential userCredential = await _auth.createUserWithEmailAndPassword(
         email: _emailController.text.trim(),
         password: _passwordController.text,
       );
 
-      // 🔹 Send verification email
+      // Send verification email
       await userCredential.user!.sendEmailVerification();
 
-      // 🔹 Store user info in Firestore
+      // Store user info in Firestore
       await _firestore.collection('users').doc(userCredential.user!.uid).set({
         'username': _usernameController.text.trim(),
         'email': _emailController.text.trim(),
@@ -143,12 +143,12 @@ class _SignupPageState extends State<SignupPage> {
         'authProvider': 'email',
       });
 
-      // 🔹 Show dialog
+      // Show dialog
       if (mounted) {
         showDialog(
           context: context,
           builder: (_) => AlertDialog(
-            title: const Text('Verify your email'),
+            title: const Text('Verify your email address'),
             content: const Text(
               'A verification email has been sent. Please verify your email before logging in.',
             ),
@@ -158,8 +158,24 @@ class _SignupPageState extends State<SignupPage> {
                   await userCredential.user!.sendEmailVerification();
                   Navigator.pop(context);
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Verification email sent again.')),
+                    SnackBar(
+                      content: Text(
+                        'Verification email sent successfully!',
+                        style: GoogleFonts.poppins(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      backgroundColor: darkGreen,
+                      behavior: SnackBarBehavior.floating,
+                      margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      duration: const Duration(seconds: 3),
+                    ),
                   );
+
                 },
                 child: const Text('Resend Email'),
               ),

@@ -1,4 +1,3 @@
-// 📦 Imports
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:email_validator/email_validator.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -190,14 +189,51 @@ class _LoginPageState extends State<LoginPage> {
     try {
       await _auth.sendPasswordResetEmail(email: email);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Password reset email sent!')),
+        SnackBar(
+          content: Text(
+            'Password reset email sent successfully!',
+            style: GoogleFonts.poppins(
+              color: Colors.white,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          backgroundColor: darkGreen,
+          behavior: SnackBarBehavior.floating,
+          margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          duration: const Duration(seconds: 3),
+        ),
       );
-    } catch (e) {
-      debugPrint("Password reset failed: $e");
+    } on FirebaseAuthException catch (e) {
+      if (e.code == 'user-not-found') {
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'No account found with that email.',
+              style: GoogleFonts.poppins(
+                color: Colors.white,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            backgroundColor: darkGreen,
+            behavior: SnackBarBehavior.floating,
+            margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      } else {
+        debugPrint("Password reset failed: ${e.code}");
+      }
     }
   }
 
-  // 🧱 UI Building
+  // UI Building
   @override
   Widget build(BuildContext context) {
     return Scaffold(

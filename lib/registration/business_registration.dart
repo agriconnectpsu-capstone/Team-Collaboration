@@ -101,17 +101,53 @@ class _BusinessRegistrationState extends State<BusinessRegistration> {
 
 
   Future<void> _pickImage() async {
-    final picker = ImagePicker();
-    final XFile? picked = await picker.pickImage(source: ImageSource.gallery);
-    if (picked != null) {
-      setState(() {
-        _birImage = File(picked.path);
-      });
-    }
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (context) => SafeArea(
+        child: Wrap(
+          children: [
+            ListTile(
+              leading: const Icon(Icons.camera_alt),
+              title: const Text('Take a Photo'),
+              onTap: () async {
+                Navigator.pop(context);
+                final picker = ImagePicker();
+                final XFile? picked = await picker.pickImage(source: ImageSource.camera);
+                if (picked != null) {
+                  setState(() {
+                    _birImage = File(picked.path);
+                  });
+                }
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library),
+              title: const Text('Choose from Gallery'),
+              onTap: () async {
+                Navigator.pop(context);
+                final picker = ImagePicker();
+                final XFile? picked = await picker.pickImage(source: ImageSource.gallery);
+                if (picked != null) {
+                  setState(() {
+                    _birImage = File(picked.path);
+                  });
+                }
+              },
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
+
   Future<String> _uploadImage(File file, String userId) async {
-    final ref = FirebaseStorage.instance.ref().child('business_uploads/$userId/bir.jpg');
+    final ref = FirebaseStorage.instance
+        .ref()
+        .child('business_uploads/$userId/${_businessNameController.text.trim()}_bir.jpg');
     await ref.putFile(file);
     return await ref.getDownloadURL();
   }
@@ -130,6 +166,12 @@ class _BusinessRegistrationState extends State<BusinessRegistration> {
         _selectedBarangay == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please select your complete location')),
+      );
+      return;
+    }
+    if (_birImage == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please upload your BIR Certificate')),
       );
       return;
     }
@@ -199,7 +241,7 @@ class _BusinessRegistrationState extends State<BusinessRegistration> {
       appBar: AppBar(
         backgroundColor: const Color(0xFF1B5E20),
         title: Text(
-          'Business Owner Registration',
+          'Business Registration',
           style: GoogleFonts.poppins(
             color: Colors.white,
             fontWeight: FontWeight.w600,
@@ -224,57 +266,79 @@ class _BusinessRegistrationState extends State<BusinessRegistration> {
               uploadField('BIR Certificate'),
               const SizedBox(height: 20),
               sectionTitle('Store Location'),
-              // Region
-              buildDropdownField(
-                hint: 'Region',
-                items: _regions,
-                selectedValue: _selectedRegion,
-                onChanged: (val) {
-                  setState(() {
-                    _selectedRegion = val;
-                    _loadProvinces(val!);
-                  });
+
+              // Wrap dropdowns in SizedBox with width = full screen minus padding
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final dropdownWidth = constraints.maxWidth; // safe width
+                  return Column(
+                    children: [
+                      SizedBox(
+                        width: dropdownWidth,
+                        child: buildDropdownField(
+                          hint: 'Region',
+                          items: _regions,
+                          selectedValue: _selectedRegion,
+                          onChanged: (val) {
+                            setState(() {
+                              _selectedRegion = val;
+                              _loadProvinces(val!);
+                            });
+                          },
+                          valueKey: 'region_code',
+                          nameKey: 'region_name',
+                        ),
+                      ),
+                      SizedBox(
+                        width: dropdownWidth,
+                        child: buildDropdownField(
+                          hint: 'Province',
+                          items: _provinces,
+                          selectedValue: _selectedProvince,
+                          onChanged: (val) {
+                            setState(() {
+                              _selectedProvince = val;
+                              _loadCities(val!);
+                            });
+                          },
+                          valueKey: 'province_code',
+                          nameKey: 'province_name',
+                        ),
+                      ),
+                      SizedBox(
+                        width: dropdownWidth,
+                        child: buildDropdownField(
+                          hint: 'City / Municipality',
+                          items: _cities,
+                          selectedValue: _selectedCity,
+                          onChanged: (val) {
+                            setState(() {
+                              _selectedCity = val;
+                              _loadBarangays(val!);
+                            });
+                          },
+                          valueKey: 'city_code',
+                          nameKey: 'city_name',
+                        ),
+                      ),
+                      SizedBox(
+                        width: dropdownWidth,
+                        child: buildDropdownField(
+                          hint: 'Barangay',
+                          items: _barangays,
+                          selectedValue: _selectedBarangay,
+                          onChanged: (val) {
+                            setState(() {
+                              _selectedBarangay = val;
+                            });
+                          },
+                          valueKey: 'brgy_code',
+                          nameKey: 'brgy_name',
+                        ),
+                      ),
+                    ],
+                  );
                 },
-                valueKey: 'region_code',
-                nameKey: 'region_name',
-              ),
-              buildDropdownField(
-                hint: 'Province',
-                items: _provinces,
-                selectedValue: _selectedProvince,
-                onChanged: (val) {
-                  setState(() {
-                    _selectedProvince = val;
-                    _loadCities(val!); // load cities for selected province
-                  });
-                },
-                valueKey: 'province_code',
-                nameKey: 'province_name',
-              ),
-              buildDropdownField(
-                hint: 'City / Municipality',
-                items: _cities,
-                selectedValue: _selectedCity,
-                onChanged: (val) {
-                  setState(() {
-                    _selectedCity = val;
-                    _loadBarangays(val!); // load barangays for selected city
-                  });
-                },
-                valueKey: 'city_code',
-                nameKey: 'city_name',
-              ),
-              buildDropdownField(
-                hint: 'Barangay',
-                items: _barangays,
-                selectedValue: _selectedBarangay,
-                onChanged: (val) {
-                  setState(() {
-                    _selectedBarangay = val;
-                  });
-                },
-                valueKey: 'brgy_code',
-                nameKey: 'brgy_name',
               ),
 
               buildTextField('Detailed Address', _detailedAddressController),
