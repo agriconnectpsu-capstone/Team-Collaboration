@@ -2,7 +2,7 @@ import '/buyer/buyer_profile.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../widgets/buyer_widgets.dart';
-import '/buyer/buyer_request.dart'; // <-- make sure this file exists
+import '/buyer/buyer_request.dart';
 
 class BuyerHomePage extends StatefulWidget {
   const BuyerHomePage({super.key});
